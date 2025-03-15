@@ -1,21 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { syncSales } from './api';
+import { createProduct } from './api';
+import NetInfo from '@react-native-community/netinfo';
 
-export const saveSaleOffline = async (saleData) => {
-  const offlineSales = await AsyncStorage.getItem('offlineSales');
-  const sales = offlineSales ? JSON.parse(offlineSales) : [];
-  sales.push({ ...saleData, isSynced: false });
-  await AsyncStorage.setItem('offlineSales', JSON.stringify(sales));
+export const saveProductOffline = async (product) => {
+  try {
+    const offlineProducts = JSON.parse(await AsyncStorage.getItem('offlineProducts') || []);
+    offlineProducts.push(product);
+    await AsyncStorage.setItem('offlineProducts', JSON.stringify(offlineProducts));
+  } catch (error) {
+    console.error('Error saving product offline:', error);
+  }
 };
 
-export const syncOfflineData = async () => {
-  const offlineSales = JSON.parse(await AsyncStorage.getItem('offlineSales') || []);
-  if (offlineSales.length > 0) {
+export const syncOfflineProducts = async () => {
+  const offlineProducts = JSON.parse(await AsyncStorage.getItem('offlineProducts') || []);
+  if (offlineProducts.length > 0) {
     try {
-      await syncSales(offlineSales);
-      await AsyncStorage.setItem('offlineSales', JSON.stringify([]));
+      for (const product of offlineProducts) {
+        await createProduct(product);
+      }
+      await AsyncStorage.removeItem('offlineProducts');
     } catch (error) {
-      console.error("Falha na sincronização:", error);
+      console.error('Error syncing products:', error);
     }
   }
+};
+
+export const checkInternetConnection = async () => {
+  const state = await NetInfo.fetch();
+  return state.isConnected;
 };
